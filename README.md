@@ -3,7 +3,7 @@
 An optimized STM32 library for interfacing with the MPU6050 (GY-521), featuring motion and zero-motion detection capabilities.  
 
 The following code is intended for STM32 boards. (Tested using STM32L476-RG NUCELO Board)  
-The library is adapted from [Jeff Rowberg](https://github.com/ElectronicCats/mpu6050/blob/master/src/MPU6050.cpp)'s existing library for the MPU6050 and Arduino boards 
+The library is adapted from [Jeff Rowberg's](https://github.com/ElectronicCats/mpu6050/blob/master/src/MPU6050.cpp) existing library for the MPU6050 and Arduino boards.
 
 ## Features
 
@@ -12,3 +12,4 @@ The library is adapted from [Jeff Rowberg](https://github.com/ElectronicCats/mpu
 - Low-power integration with STM32 wake-up functionality (Standby mode and Stop mode 2)
 - FIFO burst read functionality: MCU remains into low power mode most of the time
 
+## Getting started
