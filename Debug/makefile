@@ -60,8 +60,8 @@ all: main-build
 main-build: stm32l476_mpu6050.elf secondary-outputs
 
 # Tool invocations
-stm32l476_mpu6050.elf stm32l476_mpu6050.map: $(OBJS) $(USER_OBJS) /Users/marcomiglio/Work/UNISI/work_sassi/stm32l476_mpu6050/STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "stm32l476_mpu6050.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/marcomiglio/Work/UNISI/work_sassi/stm32l476_mpu6050/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32l476_mpu6050.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm32l476_mpu6050.elf stm32l476_mpu6050.map: $(OBJS) $(USER_OBJS) /Users/marcomiglio/Work/UNISI/work_sassi/IMU/stm32l476_mpu6050/STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "stm32l476_mpu6050.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/marcomiglio/Work/UNISI/work_sassi/IMU/stm32l476_mpu6050/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32l476_mpu6050.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -20,43 +20,51 @@
 
 // **************  MPU6050 registers: *********************
 
-#define MPU6050_ADDR     0x68 << 1  // MPU6050 address in I2C bus
+#define MPU6050_ADDR             0x68 << 1  // MPU6050 address in I2C bus
 
-#define WHO_AM_I_REG     0x75		// Test i2c connection
+#define WHO_AM_I_REG             0x75		// Test i2c connection
 
-#define PWR_MGMT_1_REG   0x6B		// Power management register 1
-#define PWR_MGMT_2_REG   0x6C		// Power management register 2
-#define SMPLRT_DIV_REG   0x19		// Adjust sample rate
-#define USER_CTRL_REG    0x6A		// Bit 7 used to enable/disable DMP
-#define SMPLRT_DIV_REG   0x19       // Set sampling rate
+#define PWR_MGMT_1_REG           0x6B		// Power management register 1
+#define PWR_MGMT_2_REG           0x6C		// Power management register 2
+#define SMPLRT_DIV_REG           0x19		// Adjust sample rate
+#define USER_CTRL_REG            0x6A		// Bit 7 used to enable/disable DMP
+#define SMPLRT_DIV_REG           0x19       // Set sampling rate
 
-#define INT_ENABLE_REG   0x38		// Interrupt enable register
-#define INT_PIN_CFG      0x37		// Interrupt pin - configurations
-#define MOT_DUR_TH_REG   0x20		// Motion duration threshold register
-#define MOT_DET_TH_REG   0x1F		// Motion detection threshold register
-#define INT_STATUS_REG   0x3A   // Interrupt status register
+#define INT_ENABLE_REG           0x38		// Interrupt enable register
+#define INT_PIN_CFG              0x37		// Interrupt pin - configurations
+#define MOT_DUR_TH_REG           0x20		// Motion duration threshold register
+#define MOT_DET_TH_REG           0x1F		// Motion detection threshold register
+#define INT_STATUS_REG           0x3A   // Interrupt status register
 
 #define MOT_DETECT_STATUS_REG    0x61
 
-#define ZRMOT_THR_REG    0x21   // zero motion threshold register
-#define ZRMOT_DUR_REG    0x22   // zero motion duration register
+#define ZRMOT_THR_REG            0x21   // zero motion threshold register
+#define ZRMOT_DUR_REG            0x22   // zero motion duration register
 
-#define ACCEL_CONFIG_REG 0x1C		// Accelerometer configurations - High Pass Filter
-#define ACCEL_XOUT_H_REG 0x3B		// Accelerometer output register (1st byte of x-axis)
+#define ACCEL_CONFIG_REG         0x1C		// Accelerometer configurations - High Pass Filter
+#define ACCEL_XOUT_H_REG         0x3B		// Accelerometer output register (1st byte of x-axis)
 
-#define TEMP_OUT_H_REG   0x41		// Temperature output register (1st byte of x-axis)
+#define TEMP_OUT_H_REG           0x41		// Temperature output register (1st byte of x-axis)
 
-#define GYRO_CONFIG_REG  0x1B		// Gyroscope configurations
-#define GYRO_XOUT_H_REG  0x43		// Gyroscope output register (1st byte of x-axis)
-#define DLPF_CFG_REG     0x1A       // DLPF configuration
+#define GYRO_CONFIG_REG          0x1B		// Gyroscope configurations
+#define GYRO_XOUT_H_REG          0x43		// Gyroscope output register (1st byte of x-axis)
+#define DLPF_CFG_REG             0x1A       // DLPF configuration
 
-#define XA_OFFS_H        0x06       //[15:0] XA_OFFS --> Warning these are 16-bit registers!!!
-#define YA_OFFS_H        0x08       //[15:0] YA_OFFS
-#define ZA_OFFS_H        0x0A       //[15:0] ZA_OFFS
+#define XA_OFFS_H                0x06   //[15:0] XA_OFFS --> Warning these are 16-bit registers!!!
+#define YA_OFFS_H                0x08   //[15:0] YA_OFFS
+#define ZA_OFFS_H                0x0A   //[15:0] ZA_OFFS
 
-#define XG_OFFS_USRH     0x13       //[15:0] XG_OFFS_USR  --> Warning these are 16-bit registers!!!
-#define YG_OFFS_USRH     0x15       //[15:0] YG_OFFS_USR
-#define ZG_OFFS_USRH     0x17       //[15:0] ZG_OFFS_USR
+#define XG_OFFS_USRH             0x13   //[15:0] XG_OFFS_USR  --> Warning these are 16-bit registers!!!
+#define YG_OFFS_USRH             0x15   //[15:0] YG_OFFS_USR
+#define ZG_OFFS_USRH             0x17   //[15:0] ZG_OFFS_USR
+
+#define MPU6050_RA_FIFO_EN       0x23   // Sensor writing in FIFO enable reg
+#define MPU6050_RA_I2C_MST_CTRL  0x24   // Control for reg3 (writing in FIFO)
+
+#define MPU6050_RA_FIFO_COUNTH   0x72   // FIFO count most significant bit
+#define MPU6050_RA_FIFO_R_W      0x74   // FIFO read/write REG
+
+
 
 
 
@@ -64,7 +72,7 @@
 
 /** PWR_MGMT_1 REGISTER **/
 #define MPU6050_PWR1_DEVICE_RESET_BIT       7   // Reset all registers bit
-#define MPU6050_PWR1_SLEEP_BIT 				      6	// Enable/disable power mode
+#define MPU6050_PWR1_SLEEP_BIT 				      6	  // Enable/disable power mode
 #define MPU6050_PWR1_CYCLE_BIT              5   // cycle mode bit
 #define MPU6050_PWR1_TEMP_DIS_BIT           3   // Enable/disable temperature sensor
 
@@ -99,6 +107,7 @@
 /** INTERRUPT_ENABLE_REG **/
 #define MPU6050_INTERRUPT_MOT_BIT           6   // Motion detection interrupt bit
 #define MPU6050_INTERRUPT_ZMOT_BIT          5   // Zero motion detection interrupt bit
+#define MPU6050_INTERRUPT_FIFO_OFLOW_BIT    4   // FIFO overflow interrupt bit
 
 /** MOTION INTERRUPT STATUS **/
 #define MPU6050_MOTION_MOT_ZRMOT_BIT        0   // Zero motion detection interrupt bit
@@ -109,14 +118,29 @@
 #define MPU6050_INTCFG_LATCH_INT_EN_BIT     5   // 0 = 50us pulse, 1 = high until cleared
 #define MPU6050_INTCFG_INT_RD_CLEAR_BIT     4   // 0 = INT status cleared by reading 0x3A, 1 = INT cleared by reading any reg
 
-/** DMP internal bits **/
+/** User control internal bits **/
 #define MPU6050_USERCTRL_DMP_EN_BIT         7   // bit 7 used to disable DMP (save ~100 uA)
+#define MPU6050_USERCTRL_FIFO_EN_BIT        6   // enable FIFO buffering
+#define MPU6050_USERCTRL_FIFO_RESET_BIT     2   // clear FIFO
+
 
 /** CYCLING MODE WAKE FREQUENCY **/
 #define MPU6050_WAKE_FREQ_1P25              0x0
 #define MPU6050_WAKE_FREQ_5                 0x1
 #define MPU6050_WAKE_FREQ_20                0x2
 #define MPU6050_WAKE_FREQ_40                0x3
+
+/** FIFO enable bits **/
+#define MPU6050_TEMP_FIFO_EN_BIT            7   // enable saving temperature measurement into the FIFO
+#define MPU6050_XG_FIFO_EN_BIT              6   // enable gyroscope x-axis to be saved into the FIFO
+#define MPU6050_YG_FIFO_EN_BIT              5   // enable gyroscope y-axis to be saved into the FIFO
+#define MPU6050_ZG_FIFO_EN_BIT              4   // enable gyroscope z-axis to be saved into the FIFO
+#define MPU6050_ACCEL_FIFO_EN_BIT           3   // enable accelerometer all axes to be saved into the FIFO
+#define MPU6050_SLV2_FIFO_EN_BIT            2   // enable slave 2 data to be saved into the FIFO
+#define MPU6050_SLV1_FIFO_EN_BIT            1   // enable slave 1 data to be saved into the FIFO
+#define MPU6050_SLV0_FIFO_EN_BIT            0   // enable slave 0 data to be saved into the FIFO
+
+#define MPU6050_SLV_3_FIFO_EN_BIT           5   // enable slave 3 data to be saved into the FIFO
 
 
 /** OTHER GYROSCOPE CONFIGS **/
@@ -188,7 +212,7 @@ HAL_StatusTypeDef I2Cdev_readByte(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint
 
 HAL_StatusTypeDef I2Cdev_writeByte(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint8_t data);
 
-HAL_StatusTypeDef I2Cdev_readBytes(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data);
+HAL_StatusTypeDef I2Cdev_readBytes(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint16_t length, uint8_t *data);
 
 HAL_StatusTypeDef I2Cdev_writeWord(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint16_t value);
 
@@ -357,6 +381,8 @@ void MPU6050_setupMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8_t t
 
 void MPU6050_setupZeroMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8_t threshold, int16_t* offsets);
 
+void MPU6050_setupFifoBuffer(I2C_HandleTypeDef *I2Cx, uint8_t dlpfMode, uint8_t freqDivider, bool overflowEnabled);
+
 
 int16_t MPU6050_getXAccelOffset(I2C_HandleTypeDef *I2Cx);
 
@@ -390,4 +416,76 @@ void MPU6050_meanSensors(I2C_HandleTypeDef *I2Cx, uint16_t buffersize, int16_t* 
 
 void MPU6050_calibration(I2C_HandleTypeDef *I2Cx, int16_t* meanVals, uint16_t readings, uint8_t acel_deadzone, uint8_t gyro_deadzone);
 
+
+
+// FIFO_EN register
+
+bool MPU6050_getTempFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setTempFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getXGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setXGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getYGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setYGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getZGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setZGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getAccelFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setAccelFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getSlave2FIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setSlave2FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getSlave1FIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setSlave1FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getSlave0FIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setSlave0FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getSlave3FIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setSlave3FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getIntFIFOBufferOverflowEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setIntFIFOBufferOverflowEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+bool MPU6050_getIntFIFOBufferOverflowStatus(I2C_HandleTypeDef *I2Cx);
+
+
+bool MPU6050_getFIFOEnabled(I2C_HandleTypeDef *I2Cx);
+
+void MPU6050_setFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled);
+
+
+void MPU6050_resetFIFO(I2C_HandleTypeDef *I2Cx);
+
+
+uint16_t MPU6050_getFIFOCount(I2C_HandleTypeDef *I2Cx);
+
+
+uint8_t MPU6050_getFIFOByte(I2C_HandleTypeDef *I2Cx);
+
+
+void MPU6050_getFIFOBytes(I2C_HandleTypeDef *I2Cx, uint8_t *data, uint16_t length);
 
