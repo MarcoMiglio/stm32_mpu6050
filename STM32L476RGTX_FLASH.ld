@@ -165,6 +165,15 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >RAM
+  
+  /*Allocate space in RAM2 to store variables between sleep cycles*/
+  .ram2 (NOLOAD):
+  {
+    _sram2 = .;
+    *(.ram2*)
+    . = ALIGN(4);
+    _eram2 = .;
+  } >RAM2
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :

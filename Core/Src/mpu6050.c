@@ -8,8 +8,8 @@
  *  The library is adapted from Jeff Rowberg's existing library for the MPU6050 and Arduino boards
  *  (see his GitHub page: https://github.com/ElectronicCats/mpu6050/blob/master/src/MPU6050.cpp).
  *
- *  The following code only contains the functions necessary to setup motion interrupt, perform
- *  simple reading on accelerometer and gyroscope axes.
+ *  The following code only contains the functions necessary to setup motion interrupt, zero motion interrupt, perform
+ *  simple reading on accelerometer and gyroscope axes and implement buffering overflow using the MPU internal FIFO.
  */
 
 #include <math.h>
@@ -163,7 +163,7 @@ HAL_StatusTypeDef I2Cdev_writeByte(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uin
  * @param data Buffer to store read data in
  * @return Status of operation (true = success)
  */
-HAL_StatusTypeDef I2Cdev_readBytes(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data) {
+HAL_StatusTypeDef I2Cdev_readBytes(I2C_HandleTypeDef *I2Cx, uint8_t devAddr, uint8_t regAddr, uint16_t length, uint8_t *data) {
   return HAL_I2C_Mem_Read(I2Cx, devAddr, regAddr, 1, data, length, HAL_MAX_DELAY);
 }
 
@@ -744,8 +744,8 @@ void MPU6050_setInterruptMode(I2C_HandleTypeDef *I2Cx, bool mode) {
 
 /** Get full set of interrupt status bits.
  * These bits clear to 0 after the register has been read. Very useful
- * for getting multiple INT statuses, since each single bit read clears
- * all of them because it has to read the whole byte.
+ * for getting multiple INT status, since each single bit-read operation clears
+ * the entire register.
  * @param I2C_HandleTypeDef pointer to I2C HAL handler
  * @return Current interrupt status
  * @see MPU6050_RA_INT_STATUS
@@ -1461,7 +1461,13 @@ void MPU6050_setupZeroMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8
   MPU6050_setDHPFMode(I2Cx, MPU6050_DHPF_RESET);
 
   //Set the accelerometer LPF to 256Hz Bandwidth
-  MPU6050_setDLPFMode(I2Cx, MPU6050_DLPF_BW_256);
+  /*
+   * This one is commented since in this application the DLPF affects the output rate.
+   * The same parameter is controlled while configuring the MPU6050 internal FIFO.
+   */
+  //
+  //MPU6050_setDLPFMode(I2Cx, MPU6050_DLPF_BW_256);
+
 
   //Enable the motion interrupt
   MPU6050_setIntEnabled(I2Cx, 0b00000000);
@@ -1478,6 +1484,40 @@ void MPU6050_setupZeroMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8
 
   //Set the accelerometer HPF to HOLD settings
   MPU6050_setDHPFMode(I2Cx, MPU6050_DHPF_5);
+
+}
+
+
+/** Procedure to configure MPU6050 internal FIFO buffer
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param dlpfMode 8-bit unsigned integer variable to specify the lowpass filter frequency, which affects sensors output rate
+ * @param freqDivider 8-bit unsigned integer that specifies the sensors update frequency (actual sampFrequency = gyroFreq/freqDivider)
+ * @param overflowEnabled bool used to activate the fifo buffer overflow interrupt line
+ */
+void MPU6050_setupFifoBuffer(I2C_HandleTypeDef *I2Cx, uint8_t dlpfMode, uint8_t freqDivider, bool overflowEnabled) {
+  // force gyro output rate to 1kHz
+   MPU6050_setDLPFMode(I2Cx, dlpfMode);
+
+   // frequency divider:
+   MPU6050_setRate(I2Cx, freqDivider);
+
+   // enable sensors writing to FIFO:
+   MPU6050_setXGyroFIFOEnabled(I2Cx, true);
+   MPU6050_setYGyroFIFOEnabled(I2Cx, true);
+   MPU6050_setZGyroFIFOEnabled(I2Cx, true);
+   MPU6050_setAccelFIFOEnabled(I2Cx, true);
+
+   // enable interrupt generation when the FIFO overflows:
+   MPU6050_setIntFIFOBufferOverflowEnabled(I2Cx, overflowEnabled);
+
+   //set trigger event: Active high until interrupt status register is cleared, push-pull configuration
+   MPU6050_setInterruptLatch(I2Cx, 1);
+   MPU6050_setInterruptLatchClear(I2Cx, 0);
+   MPU6050_setInterruptDrive(I2Cx, 0);
+   MPU6050_setInterruptMode(I2Cx, 0);
+
+   // Enable the FIFO here:
+   MPU6050_setFIFOEnabled(I2Cx, true);
 
 }
 
@@ -1781,3 +1821,397 @@ void MPU6050_calibration(I2C_HandleTypeDef *I2Cx, int16_t* meanVals, uint16_t re
     if (ready==6) break;
   }
 }
+
+
+
+
+// FIFO_EN register
+
+/** Get temperature FIFO enabled value.
+ * When set to 1, this bit enables TEMP_OUT_H and TEMP_OUT_L (Registers 65 and
+ * 66) to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current temperature FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getTempFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_TEMP_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set temperature FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New temperature FIFO enabled value
+ * @see getTempFIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setTempFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_TEMP_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get gyroscope X-axis FIFO enabled value.
+ * When set to 1, this bit enables GYRO_XOUT_H and GYRO_XOUT_L (Registers 67 and
+ * 68) to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current gyroscope X-axis FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getXGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_XG_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set gyroscope X-axis FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New gyroscope X-axis FIFO enabled value
+ * @see getXGyroFIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setXGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_XG_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get gyroscope Y-axis FIFO enabled value.
+ * When set to 1, this bit enables GYRO_YOUT_H and GYRO_YOUT_L (Registers 69 and
+ * 70) to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current gyroscope Y-axis FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getYGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_YG_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set gyroscope Y-axis FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New gyroscope Y-axis FIFO enabled value
+ * @see getYGyroFIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setYGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+    I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_YG_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get gyroscope Z-axis FIFO enabled value.
+ * When set to 1, this bit enables GYRO_ZOUT_H and GYRO_ZOUT_L (Registers 71 and
+ * 72) to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current gyroscope Z-axis FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getZGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_ZG_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set gyroscope Z-axis FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New gyroscope Z-axis FIFO enabled value
+ * @see getZGyroFIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setZGyroFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+    I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_ZG_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get accelerometer FIFO enabled value.
+ * When set to 1, this bit enables ACCEL_XOUT_H, ACCEL_XOUT_L, ACCEL_YOUT_H,
+ * ACCEL_YOUT_L, ACCEL_ZOUT_H, and ACCEL_ZOUT_L (Registers 59 to 64) to be
+ * written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current accelerometer FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getAccelFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_ACCEL_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set accelerometer FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New accelerometer FIFO enabled value
+ * @see getAccelFIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setAccelFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_ACCEL_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get Slave 2 FIFO enabled value.
+ * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
+ * associated with Slave 2 to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current Slave 2 FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getSlave2FIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV2_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set Slave 2 FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New Slave 2 FIFO enabled value
+ * @see getSlave2FIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setSlave2FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV2_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get Slave 1 FIFO enabled value.
+ * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
+ * associated with Slave 1 to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current Slave 1 FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getSlave1FIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV1_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set Slave 1 FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New Slave 1 FIFO enabled value
+ * @see getSlave1FIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setSlave1FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV1_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get Slave 0 FIFO enabled value.
+ * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
+ * associated with Slave 0 to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current Slave 0 FIFO enabled value
+ * @see MPU6050_RA_FIFO_EN
+ */
+bool MPU6050_getSlave0FIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV0_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set Slave 0 FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New Slave 0 FIFO enabled value
+ * @see getSlave0FIFOEnabled()
+ * @see MPU6050_RA_FIFO_EN
+ */
+void MPU6050_setSlave0FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_EN, MPU6050_SLV0_FIFO_EN_BIT, enabled);
+}
+
+
+/** Get Slave 3 FIFO enabled value.
+ * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
+ * associated with Slave 3 to be written into the FIFO buffer.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current Slave 3 FIFO enabled value
+ * @see MPU6050_RA_MST_CTRL
+ */
+bool MPU6050_getSlave3FIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, MPU6050_RA_I2C_MST_CTRL, MPU6050_SLV_3_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set Slave 3 FIFO enabled value.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New Slave 3 FIFO enabled value
+ * @see getSlave3FIFOEnabled()
+ * @see MPU6050_RA_MST_CTRL
+ */
+void MPU6050_setSlave3FIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, MPU6050_RA_I2C_MST_CTRL, MPU6050_SLV_3_FIFO_EN_BIT, enabled);
+}
+
+
+
+
+
+// FIFO OVerlfow Registers:
+
+
+/** Get FIFO Buffer Overflow interrupt enabled status.
+ * Will be set 0 for disabled, 1 for enabled.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current interrupt enabled status
+ * @see MPU6050_RA_INT_ENABLE
+ * @see MPU6050_INTERRUPT_FIFO_OFLOW_BIT
+ **/
+bool MPU6050_getIntFIFOBufferOverflowEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, INT_ENABLE_REG, MPU6050_INTERRUPT_FIFO_OFLOW_BIT, &data);
+  return data;
+}
+
+
+/** Set FIFO Buffer Overflow interrupt enabled status.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New interrupt enabled status
+ * @see getIntFIFOBufferOverflowEnabled()
+ * @see MPU6050_RA_INT_ENABLE
+ * @see MPU6050_INTERRUPT_FIFO_OFLOW_BIT
+ **/
+void MPU6050_setIntFIFOBufferOverflowEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, INT_ENABLE_REG, MPU6050_INTERRUPT_FIFO_OFLOW_BIT, enabled);
+}
+
+
+/** Get FIFO Buffer Overflow interrupt status.
+ * This bit automatically sets to 1 when a FIFO overflow interrupt has been
+ * generated. The bit clears to 0 after the register has been read.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current interrupt status
+ * @see MPU6050_RA_INT_STATUS
+ * @see MPU6050_INTERRUPT_FIFO_OFLOW_BIT
+ */
+bool MPU6050_getIntFIFOBufferOverflowStatus(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, INT_STATUS_REG, MPU6050_INTERRUPT_FIFO_OFLOW_BIT, &data);
+  return data;
+}
+
+
+
+
+
+// USER_CTRL register
+
+
+/** Get FIFO enabled status.
+ * When this bit is set to 0, the FIFO buffer is disabled. The FIFO buffer
+ * cannot be written to or read from while disabled. The FIFO buffer's state
+ * does not change unless the MPU-60X0 is power cycled.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current FIFO enabled status
+ * @see MPU6050_RA_USER_CTRL
+ * @see MPU6050_USERCTRL_FIFO_EN_BIT
+ */
+bool MPU6050_getFIFOEnabled(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readBit(I2Cx, MPU6050_ADDR, USER_CTRL_REG, MPU6050_USERCTRL_FIFO_EN_BIT, &data);
+  return data;
+}
+
+
+/** Set FIFO enabled status.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @param enabled New FIFO enabled status
+ * @see getFIFOEnabled()
+ * @see MPU6050_RA_USER_CTRL
+ * @see MPU6050_USERCTRL_FIFO_EN_BIT
+ */
+void MPU6050_setFIFOEnabled(I2C_HandleTypeDef *I2Cx, bool enabled) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, USER_CTRL_REG, MPU6050_USERCTRL_FIFO_EN_BIT, enabled);
+}
+
+
+/** Reset the FIFO.
+ * This bit resets the FIFO buffer when set to 1 while FIFO_EN equals 0. This
+ * bit automatically clears to 0 after the reset has been triggered.
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @see MPU6050_RA_USER_CTRL
+ * @see MPU6050_USERCTRL_FIFO_RESET_BIT
+ */
+void MPU6050_resetFIFO(I2C_HandleTypeDef *I2Cx) {
+  I2Cdev_writeBit(I2Cx, MPU6050_ADDR, USER_CTRL_REG, MPU6050_USERCTRL_FIFO_RESET_BIT, true);
+}
+
+
+// FIFO_COUNT* registers
+
+/** Get current FIFO buffer size.
+ * This value indicates the number of bytes stored in the FIFO buffer. This
+ * number is in turn the number of bytes that can be read from the FIFO buffer
+ * and it is directly proportional to the number of samples available given the
+ * set of sensor data bound to be stored in the FIFO (register 35 and 36).
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Current FIFO buffer size
+ */
+uint16_t MPU6050_getFIFOCount(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data[2];
+  I2Cdev_readBytes(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_COUNTH, 2, data);
+  return (((uint16_t)data[0]) << 8) | data[1];
+}
+
+
+// FIFO_R_W register
+
+/** Get byte from FIFO buffer.
+ * This register is used to read and write data from the FIFO buffer. Data is
+ * written to the FIFO in order of register number (from lowest to highest). If
+ * all the FIFO enable flags (see below) are enabled and all External Sensor
+ * Data registers (Registers 73 to 96) are associated with a Slave device, the
+ * contents of registers 59 through 96 will be written in order at the Sample
+ * Rate.
+ *
+ * The contents of the sensor data registers (Registers 59 to 96) are written
+ * into the FIFO buffer when their corresponding FIFO enable flags are set to 1
+ * in FIFO_EN (Register 35). An additional flag for the sensor data registers
+ * associated with I2C Slave 3 can be found in I2C_MST_CTRL (Register 36).
+ *
+ * If the FIFO buffer has overflowed, the status bit FIFO_OFLOW_INT is
+ * automatically set to 1. This bit is located in INT_STATUS (Register 58).
+ * When the FIFO buffer has overflowed, the oldest data will be lost and new
+ * data will be written to the FIFO.
+ *
+ * If the FIFO buffer is empty, reading this register will return the last byte
+ * that was previously read from the FIFO until new data is available. The user
+ * should check FIFO_COUNT to ensure that the FIFO buffer is not read when
+ * empty.
+ *
+ * @param I2C_HandleTypeDef pointer to I2C HAL handler
+ * @return Byte from FIFO buffer
+ */
+uint8_t MPU6050_getFIFOByte(I2C_HandleTypeDef *I2Cx) {
+  uint8_t data;
+  I2Cdev_readByte(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_R_W, &data);
+  return data;
+}
+
+
+void MPU6050_getFIFOBytes(I2C_HandleTypeDef *I2Cx, uint8_t *data, uint16_t length) {
+  if(length > 0){
+    I2Cdev_readBytes(I2Cx, MPU6050_ADDR, MPU6050_RA_FIFO_R_W, length, data);
+  } else {
+    *data = 0;
+  }
+}
+
+
+
+
+
+
+
+
+
+
