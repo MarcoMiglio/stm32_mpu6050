@@ -1,8 +1,7 @@
-# **Example README File**
+# **STM32 library for mpu6050 (GY521) with motion/zero motion detection for low power implementations**
 
-## **Project Title**
-
-Project Title is a description of the project and its purpose.
+The following code is intended for STM32 boards. (Tested using STM32L476-RG NUCELO Board)
+The library is adapted from Jeff Rowberg's existing library for the MPU6050 and Arduino boards. See his [GitHub page](https://github.com/ElectronicCats/mpu6050/blob/master/src/MPU6050.cpp)
 
 ## **Introduction**
 
