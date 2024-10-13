@@ -21,5 +21,5 @@ The Core/Src and Core/Inc directories, contain the code responsible for communic
 - Core/Src/mpu6050.c and Core/Inc/mpu6050.h provide the functions for interacting with the sensor
 - The files Core/Src/main.c and Core/Inc/main.h contain a complete example that demonstrates all the features available in this driver
 
-Setup the project using STM32CubeIDE:
-- Start and initialize the I2C bus in fast mode (400 kHz), in the example I2C1 was used managed through '&hi2c1'.
+**Setup the project** using STM32CubeIDE:
+- Start and initialize the I2C bus in fast mode (400 kHz), in the example I2C1 was used and managed through `&hi2c1`.
