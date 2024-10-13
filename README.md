@@ -28,3 +28,16 @@ The Core/Src and Core/Inc directories, contain the code responsible for communic
 - Select pin PC5 and configure it as "SYS_WKUP5".
 - Now select Timers -> RTC and enable "Activate clock source", "Activate calendar". Make also sure that the RTC is sourced through the LSE (Low speed external) oscillator. This can be done in the clock configuration window, by selecting LSE under the RTC/LCD Source Mux.
 - In the same window (Timers -> RTC) select "Internal WakeUp" under the WakeUp menu, and enable the RTC wake-up interrupt trough EXTI line 20 in the NVIC settings.
+- Add these lines to your "_FLSH.id" file (in the example STM32L476RGTX_FLASH.id): 
+```
+/*Allocate space in RAM2 to store variables between sleep cycles*/
+.ram2 (NOLOAD):
+{
+  _sram2 = .;
+  *(.ram2*)
+  . = ALIGN(4);
+  _eram2 = .;
+} >RAM2
+```
+They are needed to allocate a memory region that can be powered through the internal low power regulator, allowing this RAM region to be maintained across sleep cycles in standby mode.
+
