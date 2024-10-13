@@ -19,7 +19,12 @@ This driver is specifically designed to optimize power consumption, making it id
 The Core/Src and Core/Inc directories, contain the code responsible for communicating with the MPU6050:  
 
 - Core/Src/mpu6050.c and Core/Inc/mpu6050.h provide the functions for interacting with the sensor
-- The files Core/Src/main.c and Core/Inc/main.h contain a complete example that demonstrates all the features available in this driver
+- The files Core/Src/main.c and Core/Inc/main.h contain a complete example that demonstrates a possible solution to implement all the features available in this driver
 
 **Setup the project** using STM32CubeIDE:
 - Start and initialize the I2C bus in fast mode (400 kHz), in the example I2C1 was used and managed through `&hi2c1`.
+- Configure the I2C DMA settings: enable DMA reception by selecting I2C1_RX, DMA1 channel 7, peripheral to memory. In the NVIC settings tab enable "I2C1 event interrupt" and "I2C1 error handler".
+- In the GPIO tab select pin PA9 and configure it as "EXTI" (External interrupt mode with rising edge trigger detection), then enable "EXTI line[9:5] interrupts" in the NVIC interrupt table. Enable also the internal pull-down under GPIO Pull-up/Pull-down. Please note that in the example the user label was modified, therefore this pin is referenced as "IMU_Int1".
+- Select pin PC5 and configure it as "SYS_WKUP5".
+- Now select Timers -> RTC and enable "Activate clock source", "Activate calendar". Make also sure that the RTC is sourced through the LSE (Low speed external) oscillator. This can be done in the clock configuration window, by selecting LSE under the RTC/LCD Source Mux.
+- In the same window (Timers -> RTC) select "Internal WakeUp" under the WakeUp menu, and enable the RTC wake-up interrupt trough EXTI line 20 in the NVIC settings.
