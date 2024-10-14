@@ -39,4 +39,4 @@ The Core/Src and Core/Inc directories, contain the code responsible for communic
   _eram2 = .;
 } >RAM2
 ```
-For additional details visit the [wiki page](./wiki)
+For additional details visit the [wiki page](https://github.com/MarcoMiglio/stm32_mpu6050/wiki).
