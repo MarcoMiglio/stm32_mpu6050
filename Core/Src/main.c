@@ -37,6 +37,8 @@
 /* USER CODE BEGIN PD */
 
 #define FIFO_SIZE 1024
+#define gyro_output_rate 1000 // in Hz, can be either 8 kHz or 1 kHz
+#define fifo_off_time    500  // in ms, total time the fifo is disabled while mcu is reading (take some margin...)
 
 // Buffer size to store timeStamp + sensor data before writing to microSD
 #define BUFFER_SIZE 31456
@@ -52,20 +54,20 @@
 
 
 /****** RTC Initialization variables: ******/
-#define startHours 0x18
-#define startMinutes 0x33
+#define startHours 0x13
+#define startMinutes 0x15
 #define startSeconds 0x0
 
-#define startDate 0x9
+#define startDate 0x15
 #define startMonth RTC_MONTH_OCTOBER
 #define startYear 0x24
 
 /****** MOTION DETECTION THRESHOLDS ******/
-#define mot_th 10    // 1 LSB = 2 mg, Suggested value ~ 20mg
-#define mot_dur 2    // 1 LSB = 1 ms --> The "old" documentation suggests duration = 1 ms
+#define mot_th 30    // 1 LSB = 2 mg, Suggested value ~ 20mg
+#define mot_dur 1    // 1 LSB = 1 ms --> The "old" documentation suggests duration = 1 ms
 
 /****** ZERO MOTION DETECTION THRESHOLDS ******/
-#define zeroMot_th 60    // 1 LSB = 2 mg
+#define zeroMot_th 80    // 1 LSB = 2 mg
 #define zeroMot_dur 150  // 1 LSB = 64 ms
 
 
@@ -237,9 +239,10 @@ int main(void)
 
     printf("MPU6050 Initialized!\r\n");
 
-
     /* mpu6050 setup zero motion interrupt: */
     MPU6050_setupZeroMotionInt(&hi2c1, zeroMot_dur, zeroMot_th, MPU6050_offsets);
+
+
 
 
     /* modify mpu6050 settings to store sensor readings in the FIFO: */
@@ -277,6 +280,9 @@ int main(void)
     // Needed while loading the script (avoid conflict with ST-Link)
     HAL_Delay(500);
 
+    // Initially deactivate wakeup function:
+    HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
+
     // Uncomment here to perform a new calibration routine:
     // MPU6050_selfCalibration(&hi2c1, A2G, G250DPS, readings, acel_deadzone, gyro_deadzone);
 
@@ -301,24 +307,23 @@ int main(void)
   uint8_t buff[FIFO_SIZE];
   memset(buff, 0, sizeof(buff));
   uint16_t fifoCount;
+  uint32_t wakeUpCounter;
 
   /* Enable STOP2 mode*/
 
-  /*
-   * TODO calculate sleep time using functions
-   * (changes according to sampling time and packet size)
-   * This variable remains constant (used as a reference)
-   */
-  uint16_t defaultSleepTime = 21000;  // in milliseconds!!
+
+  /* calculate sleep time: */
+
+  double fifoSamplingRate   = (double) gyro_output_rate/MPU6050_getRate(&hi2c1);
+  uint16_t fifo_max_packets = (uint16_t) FIFO_SIZE/FIFO_PACKET_SIZE;    // max entire packets in the FIFO buffer:
+  uint16_t defaultSleepTime = (uint16_t) (1000*(fifo_max_packets/fifoSamplingRate)) - fifo_off_time; // in ms!! Take some margin to avoid overflow conditions
 
   // initially sleep for the default time:
-  sleepTime = defaultSleepTime;
-
-  // TODO: comment here:
+  wakeUpCounter = (defaultSleepTime/1e3)/(0.00048828125);
 
   // suspend tick and setup RTC interrupt
   HAL_SuspendTick();
-  HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, sleepTime, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
+  HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, wakeUpCounter, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
 
   /* Enter Stop mode 2 */
   HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
@@ -342,6 +347,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     if(zero_mot_trg){ // if zero motion is triggered
+
+      printf("\nZero motion\r\n");
 
       // prevent new interrupt generation
       MPU6050_setIntZeroMotionEnabled(&hi2c1, false);
@@ -396,6 +403,7 @@ int main(void)
     } /* End of zero motion event: enter deep sleep mode */
 
     if(rtc_trg){ // if rtc flag is set
+      printf("\nFIFO read\r\n");
 
       /* read FIFO buffer: */
       bool rehabilitateFifo = true;
@@ -423,8 +431,7 @@ int main(void)
             ==> WakeUpCounter = ~10s/0.0005s = 20000 = 0x4E20 */
 
       rtc_trg = false;
-      sleepTime = defaultSleepTime - Timer_Status();
-      uint32_t wakeUpCounter = (sleepTime/1e3)/(0.00048828125);
+      wakeUpCounter = ((defaultSleepTime - Timer_Status())/1e3)/(0.00048828125);
 
       // Enter STOP2 mode:
       HAL_SuspendTick();
@@ -1026,11 +1033,6 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef * hi2c){
 //TODO
 void HAL_RTCEx_WakeUpTimerEventCallback(RTC_HandleTypeDef *hrtc)
 {
-  SystemClock_Config();
-  HAL_ResumeTick();
-
-  // other code here...
-  printf("wake from RTC\r\n");
   rtc_trg = true;
 }
 
@@ -1039,11 +1041,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if(GPIO_Pin == IMU_Int1_Pin)
   {
-    SystemClock_Config();
-    HAL_ResumeTick();
-
     // code here...
-    printf("wake from pin\r\n");
     zero_mot_trg = true;
 
   }
