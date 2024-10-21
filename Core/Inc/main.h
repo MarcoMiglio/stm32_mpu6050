@@ -65,9 +65,9 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
-#define IMU_Int1_Pin GPIO_PIN_9
-#define IMU_Int1_GPIO_Port GPIOA
-#define IMU_Int1_EXTI_IRQn EXTI9_5_IRQn
+#define IMU_interrupt_Pin GPIO_PIN_5
+#define IMU_interrupt_GPIO_Port GPIOC
+#define IMU_interrupt_EXTI_IRQn EXTI9_5_IRQn
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14

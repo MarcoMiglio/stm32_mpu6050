@@ -243,6 +243,16 @@ int main(void)
     MPU6050_setupZeroMotionInt(&hi2c1, zeroMot_dur, zeroMot_th, MPU6050_offsets);
 
 
+//    // Reconfigure pin PC5 to detect zero motion INT TODO: test this part
+//    GPIO_InitTypeDef GPIO_InitStruct = {0};
+//    GPIO_InitStruct.Pin = GPIO_PIN_5;
+//    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+//    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+//    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+//
+//    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+//    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
 
 
     /* modify mpu6050 settings to store sensor readings in the FIFO: */
@@ -418,7 +428,6 @@ int main(void)
 
       process_and_save_ImuReadings(buff, fifoCount, mainBuff, &buff_Head, ax, ay, az, gx, gy, gz);
 
-
       /*  setup RTC alarm */
 
       /*  RTC Wake-up Interrupt Generation:
@@ -433,13 +442,15 @@ int main(void)
       rtc_trg = false;
       wakeUpCounter = ((defaultSleepTime - Timer_Status())/1e3)/(0.00048828125);
 
-      // Enter STOP2 mode:
-      HAL_SuspendTick();
-      HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, wakeUpCounter, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
+      if(!zero_mot_trg){         // manage the case in which zero_mot is triggered while reading the FIFO
+        // Enter STOP2 mode:     // ==> skip sleep phase and manage this condition.
+        HAL_SuspendTick();
+        HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, wakeUpCounter, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
 
 
-      /*  Enter Stop Mode 2 */
-      HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+        /*  Enter Stop Mode 2 */
+        HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+      }
 
     } /* End of FIFO processing */
 
@@ -731,11 +742,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA0 PA1 PA4 PA6
-                           PA7 PA8 PA10 PA11
-                           PA12 PA15 */
+                           PA7 PA8 PA9 PA10
+                           PA11 PA12 PA15 */
   GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_4|GPIO_PIN_6
-                          |GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12|GPIO_PIN_15;
+                          |GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10
+                          |GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -746,6 +757,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : IMU_interrupt_Pin */
+  GPIO_InitStruct.Pin = IMU_interrupt_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(IMU_interrupt_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB0 PB1 PB2 PB10
                            PB11 PB12 PB13 PB14
@@ -758,12 +775,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : IMU_Int1_Pin */
-  GPIO_InitStruct.Pin = IMU_Int1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(IMU_Int1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PD2 */
   GPIO_InitStruct.Pin = GPIO_PIN_2;
@@ -1002,6 +1013,16 @@ void enterStandbyMode(){
 
   printf("About to sleep...\r\n");
 
+
+  // TODO: check here -> reconfigure EXTI pin as SYS_WKUP
+  HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin  = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   // Enable pull down on SYS_WKUP pin
   HAL_PWREx_EnableGPIOPullDown(PWR_GPIO_C, PWR_GPIO_BIT_5);
   HAL_PWREx_EnablePullUpPullDownConfig();
@@ -1039,7 +1060,7 @@ void HAL_RTCEx_WakeUpTimerEventCallback(RTC_HandleTypeDef *hrtc)
 //TODO
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if(GPIO_Pin == IMU_Int1_Pin)
+  if(GPIO_Pin == IMU_interrupt_Pin)
   {
     // code here...
     zero_mot_trg = true;

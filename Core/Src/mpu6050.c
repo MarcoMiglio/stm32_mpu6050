@@ -1385,8 +1385,8 @@ void MPU6050_setupMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8_t t
   // make sure standard settings are used
   MPU6050_Initialize(I2Cx, A2G, G250DPS, offsets);
 
-  //set trigger event: Active high until interrupt status register is cleared, push-pull configuration
-  MPU6050_setInterruptLatch(I2Cx, 1);
+  //set trigger event: Active high 50 us pulse, push-pull configuration
+  MPU6050_setInterruptLatch(I2Cx, 0);
   MPU6050_setInterruptLatchClear(I2Cx, 0);
   MPU6050_setInterruptDrive(I2Cx, 0);
   MPU6050_setInterruptMode(I2Cx, 0);
@@ -1444,8 +1444,8 @@ void MPU6050_setupZeroMotionInt(I2C_HandleTypeDef *I2Cx, uint8_t duration, uint8
   // make sure standard settings are used
   MPU6050_Initialize(I2Cx, A2G, G250DPS, offsets);
 
-  //set trigger event: Active high until interrupt status register is cleared, push-pull configuration
-  MPU6050_setInterruptLatch(I2Cx, 1);
+  //set trigger event: Active high 50 us pulse, push-pull configuration
+  MPU6050_setInterruptLatch(I2Cx, 0);
   MPU6050_setInterruptLatchClear(I2Cx, 0);
   MPU6050_setInterruptDrive(I2Cx, 0);
   MPU6050_setInterruptMode(I2Cx, 0);
@@ -1510,8 +1510,8 @@ void MPU6050_setupFifoBuffer(I2C_HandleTypeDef *I2Cx, uint8_t dlpfMode, uint8_t 
    // enable interrupt generation when the FIFO overflows:
    MPU6050_setIntFIFOBufferOverflowEnabled(I2Cx, overflowEnabled);
 
-   //set trigger event: Active high until interrupt status register is cleared, push-pull configuration
-   MPU6050_setInterruptLatch(I2Cx, 1);
+   //set trigger event: Active high 50 us pulse, push-pull configuration
+   MPU6050_setInterruptLatch(I2Cx, 0);
    MPU6050_setInterruptLatchClear(I2Cx, 0);
    MPU6050_setInterruptDrive(I2Cx, 0);
    MPU6050_setInterruptMode(I2Cx, 0);
