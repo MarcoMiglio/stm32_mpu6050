@@ -39,3 +39,10 @@ The Core/Src and Core/Inc directories, contain the code responsible for communic
 } >RAM2
 ```
 For additional details visit the [wiki page](https://github.com/MarcoMiglio/stm32_mpu6050/wiki).
+
+
+## Useful links
+- [STM library](https://github.com/leech001/MPU6050) used for reference.
+- [Motion interrupt](https://olivertechnologydevelopment.wordpress.com/2017/08/24/esp8266-sensor-series-gy-521-imu-part-2/) setup procedure
+- [Arduino library](https://github.com/ElectronicCats/mpu6050/blob/master/src/MPU6050.cpp) for MPU6050
+- [MPU6050 schematics](https://win.adrirobot.it/sensori/MPU-6050/sensore_MPU-6050.htm)
